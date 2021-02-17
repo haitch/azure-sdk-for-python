@@ -3,7 +3,15 @@ steps:
     - pwsh: |
         $filesInCommonDir = git diff "origin/$(System.PullRequest.TargetBranch)" HEAD --name-only -- 'eng/common/*'
 
-        if ((!"$(System.PullRequest.SourceBranch)".StartsWith("sync-eng/common")) -and ($LASTEXITCODE -eq 0) -and ($filesInCommonDir.Count -gt 0))
+        # Find the default branch of the repo
+        $defaultBranchLine = git remote show origin | Where-Object {$_ -Like "*HEAD branch:*"}
+        $defaultBranchArr =  $defaultBranchLine.Trim().Split()
+        $defaultBranch = $defaultBranchArr[$defaultBranchArr.Count - 1]
+
+        Write-Host "Default Branch: ${defaultBranch}"
+
+        if ((!"$(System.PullRequest.SourceBranch)".StartsWith("sync-eng/common")) -and
+        ($LASTEXITCODE -eq 0) -and ($filesInCommonDir.Count -gt 0) -and "$(System.PullRequest.TargetBranch)" -eq $defaultBranch)
         {
           Write-Host "##vso[task.LogIssue type=error;]Changes to files under 'eng/common' directory should not be made in this Repo`n${filesInCommonDir}"
           Write-Host "##vso[task.LogIssue type=error;]Please follow workflow at https://github.com/Azure/azure-sdk-tools/blob/master/doc/common/common_engsys.md"
